@@ -4,13 +4,21 @@
 // a silent no-op), so the previous `serve` script never actually sent these and
 // the MT tests could not run. Dependency-free (Node built-ins only).
 //
-// Usage: node scripts/serve.js [port] [rootDir]
+// Usage: node scripts/serve.js [port] [rootDir] [--no-coi]
+//
+// --no-coi omits COOP/COEP so the page is NOT cross-origin isolated. The
+// single-threaded core exists to run without isolation; its test lane must use
+// this mode or it only ever proves the core works under the very headers it is
+// meant to avoid.
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const PORT = Number(process.argv[2] || 3000);
-const ROOT = path.resolve(process.argv[3] || process.cwd());
+const args = process.argv.slice(2);
+const NO_COI = args.includes("--no-coi");
+const positional = args.filter((a) => !a.startsWith("--"));
+const PORT = Number(positional[0] || 3000);
+const ROOT = path.resolve(positional[1] || process.cwd());
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -34,8 +42,12 @@ const MIME = {
 };
 
 const COI_HEADERS = {
-  "Cross-Origin-Opener-Policy": "same-origin",
-  "Cross-Origin-Embedder-Policy": "require-corp",
+  ...(NO_COI
+    ? {}
+    : {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      }),
   "Cross-Origin-Resource-Policy": "cross-origin",
   "Access-Control-Allow-Origin": "*",
   "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -47,7 +59,9 @@ const server = http.createServer((req, res) => {
   // the server ready (there is no index.html at the repo root).
   if (urlPath === "/") {
     res.writeHead(200, { ...COI_HEADERS, "Content-Type": "text/plain" });
-    return res.end("ffmpeg.wasm dev server (cross-origin isolated)");
+    return res.end(
+      `ffmpeg.wasm dev server (${NO_COI ? "NOT isolated" : "cross-origin isolated"})`
+    );
   }
   const filePath = path.join(ROOT, urlPath);
   // Prevent path traversal outside ROOT.
@@ -73,5 +87,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`serve: http://localhost:${PORT} (root=${ROOT}, cross-origin isolated)`);
+  console.log(
+    `serve: http://localhost:${PORT} (root=${ROOT}, ${NO_COI ? "NOT isolated" : "cross-origin isolated"})`
+  );
 });

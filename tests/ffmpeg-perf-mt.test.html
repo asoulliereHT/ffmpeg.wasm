@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- MT perf lane: serve via the COI server (port 3000) — the MT core
+         requires cross-origin isolation to load. -->
+    <title>FFmpeg Perf Probe (MT, isolated)</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="../node_modules/mocha/mocha.js"></script>
+    <script src="../node_modules/chai/chai.js"></script>
+    <script src="../packages/ffmpeg/dist/umd/ffmpeg.js"></script>
+    <script src="./test-helper-browser.js"></script>
+    <script type="text/javascript">
+      window.FFMPEG_TYPE = "mt";
+      window.CORE_URL =
+        location.origin + "/packages/core-mt/dist/umd/ffmpeg-core.js";
+    </script>
+    <script>
+      mocha.setup("bdd");
+      mocha.timeout(300000);
+    </script>
+    <script src="./ffmpeg-perf.test.js"></script>
+    <script>
+      window.expect = chai.expect;
+      mocha.run();
+    </script>
+  </body>
+</html>

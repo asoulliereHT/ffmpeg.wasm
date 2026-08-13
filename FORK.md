@@ -9,8 +9,17 @@ stitch clips in the browser. Built for **vendoring** (not npm-published).
 - **Lean codec set**: kept x264, vpx, opus, mp3lame, webp, zimg + native AAC.
   Dropped x265, theora, vorbis/ogg, and the subtitle/text stack (libass, freetype,
   fribidi, harfbuzz) — no subtitles/text overlays. Core is **~25.3 MB** (was 32.7).
-- **MT-only.** The 8.x CLI frontend requires threads, so there is no single-threaded
-  core. The MT core requires cross-origin isolation (see Headers below).
+- **MT-only on 8.x.** fftools requires threads from FFmpeg **6.0** onward
+  (`ffmpeg_deps` gains `threads`; `pthread_create` is unconditional in
+  demux/mux), so no single-threaded core exists past the 5.1 branch. The MT
+  core requires cross-origin isolation (see Headers below). This branch also
+  builds **ST 5.1.10** cores from the same hardened dep pins — they need **no**
+  isolation headers and support multi-input filtergraphs (see capability map):
+  `make build-st` → `packages/core` (full, ~22.8 MB) and `make build-st-copy`
+  → `packages/core-copy` (**2.6 MB**, stream-copy only: mov/mpegts/concat in,
+  mp4 out, no encoders — sized to clipping-tool-ui's two `-c copy` commands,
+  vetted verbatim by `tests/ffmpeg-cliptool.test.js`). Vetting record:
+  `~/vault/docs/ffmpeg.wasm/plans/2026-08-13 st-5.1.10-core.md`.
 - Supply chain: floating lib branches (x264, lame) pinned to commit SHAs; zlib bumped
   to **1.3.1** (CVE-2018-25032, CVE-2022-37434) from upstream.
 - **8.x frontend port**: the vendored `src/fftools` frontend was re-based onto 8.1.2.
@@ -56,14 +65,19 @@ re-encode:
 | Lossless concat (`-f concat -c copy`) | ✅ |
 | Single-input re-encode (`-c:v libx264 -c:a aac`) | ✅ |
 | Re-encode **stitch** via concat *demuxer* (`-f concat -i list -c:v libx264 …`) | ✅ single input → one out |
-| **Multi-input filtergraph** — `overlay` (watermark), `xfade` (softened transitions), concat *filter* | ❌ deadlocks — **run server-side** |
+| **Multi-input filtergraph** — `overlay` (watermark), `xfade` (softened transitions), concat *filter* | ❌ deadlocks on **MT 8.x** — ✅ works on **ST 5.1** |
 
 The multi-input deadlock is a scheduler-in-wasm limitation of the 7.x/8.x
-thread-based frontend (not thread-count), confirmed on 8.1.2. The concat
-*demuxer* feeds the encoder as one stream (works); the concat *filter* / `xfade`
-/ `overlay` open several inputs into one graph (deadlock). **Design consequence:**
-an app should do clip + stitch (copy or re-encode) in the browser, and produce
-**watermarked output and cross-faded transitions server-side.**
+thread-based frontend (not thread-count), confirmed on 8.1.2 — and confirmed
+**engine-specific** on 2026-08-13: the same `overlay`/`xfade`/concat-filter
+graphs complete in milliseconds on the pre-scheduler ST 5.1.10 core
+(`tests/ffmpeg-multiinput.test.js`, `npm run test:st:probe`). The concat
+*demuxer* feeds the encoder as one stream (works everywhere); the concat
+*filter* / `xfade` / `overlay` open several inputs into one graph, which the
+8.x scheduler cannot drain in wasm. **Design consequence, per engine:** on the
+MT 8.x core, do clip + stitch in the browser and produce watermarked output and
+cross-faded transitions server-side; on the ST 5.1.10 core, all of the above
+run client-side.
 
 ## Required headers (MT / SharedArrayBuffer)
 Serve the app's HTML with:

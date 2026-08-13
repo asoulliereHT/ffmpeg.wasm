@@ -78,6 +78,21 @@ case "${FFMPEG_VARIANT:-full}" in
       --enable-libzimg
     )
     ;;
+  copy)
+    # Stream-copy-only trim: the clipping-tool-ui pipeline is exactly two
+    # `-c copy` commands (clip export from TS segments + mp4 stitch), so no
+    # encoders, no external codec libs, no GPL, no image/subtitle stack.
+    # Decoders h264/aac stay for avformat_find_stream_info probing only.
+    CODEC_FLAGS=(
+      --disable-everything
+      --enable-protocol=file,pipe,data
+      --enable-demuxer=mov,mpegts,concat
+      --enable-muxer=mp4,null
+      --enable-decoder=h264,aac
+      --enable-parser=h264,aac
+      --enable-bsf=h264_mp4toannexb,aac_adtstoasc,extract_extradata,null
+    )
+    ;;
   *)
     echo "ffmpeg build: unknown FFMPEG_VARIANT='${FFMPEG_VARIANT:-}'" >&2
     exit 1

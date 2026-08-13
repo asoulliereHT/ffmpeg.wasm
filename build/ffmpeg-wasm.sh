@@ -7,15 +7,80 @@ set -euo pipefail
 
 EXPORT_NAME="createFFmpegCore"
 
+# fftools generation by FFmpeg version. The two frontends share no threading
+# code: 5.1 is the classic sequential transcode loop (last ST-capable
+# generation, 8 files); 8.x is the thread-per-stage scheduler frontend.
+case "${FFMPEG_VERSION:-n8.1.2}" in
+  n5.*)
+    VERSION_FLAGS=(
+      -I./src/fftools-5.1
+    )
+    # 5.1 builds libpostproc only under --enable-gpl (removed upstream in
+    # 8.x); the copy variant is GPL-free, so link it only when it was built.
+    if [ -f libpostproc/libpostproc.a ]; then
+      VERSION_FLAGS+=(-Llibpostproc -lpostproc)
+    fi
+    FFTOOLS_SRCS=(
+      src/fftools-5.1/cmdutils.c
+      src/fftools-5.1/ffmpeg.c
+      src/fftools-5.1/ffmpeg_filter.c
+      src/fftools-5.1/ffmpeg_hw.c
+      src/fftools-5.1/ffmpeg_mux.c
+      src/fftools-5.1/ffmpeg_opt.c
+      src/fftools-5.1/opt_common.c
+      src/fftools-5.1/ffprobe.c
+    )
+    ;;
+  *)
+    VERSION_FLAGS=(
+      -I./src/fftools
+      -I./compat/stdbit                   # FFmpeg 7.x/8.x fftools use C23 <stdbit.h>; emsdk lacks it, use FFmpeg's compat fallback
+    )
+    # FFmpeg 8.x fftools: scheduler-based frontend =
+    # ffmpeg_dec/enc/demux/mux_init/sched + sync_queue/thread_queue. vs 7.x:
+    # objpool.c was dropped (thread_queue now uses libavutil/container_fifo);
+    # ffprobe's writers were extracted into textformat/*; graph/graphprint.c is
+    # a fork stub (upstream needs the resources/resman resource-bundling pipeline).
+    FFTOOLS_SRCS=(
+      src/fftools/cmdutils.c
+      src/fftools/ffmpeg.c
+      src/fftools/ffmpeg_dec.c
+      src/fftools/ffmpeg_demux.c
+      src/fftools/ffmpeg_enc.c
+      src/fftools/ffmpeg_filter.c
+      src/fftools/ffmpeg_hw.c
+      src/fftools/ffmpeg_mux.c
+      src/fftools/ffmpeg_mux_init.c
+      src/fftools/ffmpeg_opt.c
+      src/fftools/ffmpeg_sched.c
+      src/fftools/graph/graphprint.c
+      src/fftools/opt_common.c
+      src/fftools/sync_queue.c
+      src/fftools/thread_queue.c
+      src/fftools/textformat/avtextformat.c
+      src/fftools/textformat/tf_compact.c
+      src/fftools/textformat/tf_default.c
+      src/fftools/textformat/tf_flat.c
+      src/fftools/textformat/tf_ini.c
+      src/fftools/textformat/tf_json.c
+      src/fftools/textformat/tf_mermaid.c
+      src/fftools/textformat/tf_xml.c
+      src/fftools/textformat/tw_avio.c
+      src/fftools/textformat/tw_buffer.c
+      src/fftools/textformat/tw_stdout.c
+      src/fftools/ffprobe.c
+    )
+    ;;
+esac
+
 CONF_FLAGS=(
   -I.
-  -I./src/fftools
-  -I./compat/stdbit                       # FFmpeg 7.x/8.x fftools use C23 <stdbit.h>; emsdk lacks it, use FFmpeg's compat fallback
+  "${VERSION_FLAGS[@]}"
   -I$INSTALL_DIR/include
-  -L$INSTALL_DIR/lib 
-  -Llibavcodec 
-  -Llibavdevice 
-  -Llibavfilter 
+  -L$INSTALL_DIR/lib
+  -Llibavcodec
+  -Llibavdevice
+  -Llibavfilter
   -Llibavformat
   -Llibavutil
   -Llibswresample
@@ -27,8 +92,8 @@ CONF_FLAGS=(
   -lavutil
   -lswresample
   -lswscale
-  -Wno-deprecated-declarations 
-  $LDFLAGS 
+  -Wno-deprecated-declarations
+  $LDFLAGS
   -sENVIRONMENT=worker
   -sWASM_BIGINT                            # enable big int support
   -sUSE_SDL=2                              # use emscripten SDL2 lib port
@@ -42,38 +107,7 @@ CONF_FLAGS=(
   -sEXPORTED_RUNTIME_METHODS=$(node src/bind/ffmpeg/export-runtime.js) # exported built-in functions
   -lworkerfs.js
   --pre-js src/bind/ffmpeg/bind.js        # extra bindings, contains most of the ffmpeg.wasm javascript code
-  # ffmpeg source code (FFmpeg 8.x fftools: scheduler-based frontend =
-  # ffmpeg_dec/enc/demux/mux_init/sched + sync_queue/thread_queue). vs 7.x:
-  # objpool.c was dropped (thread_queue now uses libavutil/container_fifo);
-  # ffprobe's writers were extracted into textformat/*; graph/graphprint.c is a
-  # fork stub (upstream needs the resources/resman resource-bundling pipeline).
-  src/fftools/cmdutils.c
-  src/fftools/ffmpeg.c
-  src/fftools/ffmpeg_dec.c
-  src/fftools/ffmpeg_demux.c
-  src/fftools/ffmpeg_enc.c
-  src/fftools/ffmpeg_filter.c
-  src/fftools/ffmpeg_hw.c
-  src/fftools/ffmpeg_mux.c
-  src/fftools/ffmpeg_mux_init.c
-  src/fftools/ffmpeg_opt.c
-  src/fftools/ffmpeg_sched.c
-  src/fftools/graph/graphprint.c
-  src/fftools/opt_common.c
-  src/fftools/sync_queue.c
-  src/fftools/thread_queue.c
-  src/fftools/textformat/avtextformat.c
-  src/fftools/textformat/tf_compact.c
-  src/fftools/textformat/tf_default.c
-  src/fftools/textformat/tf_flat.c
-  src/fftools/textformat/tf_ini.c
-  src/fftools/textformat/tf_json.c
-  src/fftools/textformat/tf_mermaid.c
-  src/fftools/textformat/tf_xml.c
-  src/fftools/textformat/tw_avio.c
-  src/fftools/textformat/tw_buffer.c
-  src/fftools/textformat/tw_stdout.c
-  src/fftools/ffprobe.c
+  "${FFTOOLS_SRCS[@]}"
 )
 
 # Codec link libs by variant (default full). Mirrors the --enable set chosen in
@@ -84,6 +118,10 @@ case "${FFMPEG_VARIANT:-full}" in
     ;;
   full)
     FFMPEG_LIBS=(-lx264 -lvpx -lmp3lame -lopus -lz -lwebpmux -lwebp -lsharpyuv -lzimg)
+    ;;
+  copy)
+    # Stream-copy-only: no external codec libs at all.
+    FFMPEG_LIBS=()
     ;;
   *)
     echo "ffmpeg-wasm build: unknown FFMPEG_VARIANT='${FFMPEG_VARIANT:-}'" >&2
