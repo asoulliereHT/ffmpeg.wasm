@@ -81,13 +81,14 @@ RUN bash -x /src/build.sh
 
 # Base ffmpeg image with dependencies and source code populated.
 FROM emsdk-base AS ffmpeg-base
+RUN embuilder build sdl2 sdl2-mt
 # n8.1.2 (MT) or n5.1.10 (ST) — selects the FFmpeg tag AND which vendored
 # fftools generation ffmpeg-wasm.sh compiles (src/fftools vs src/fftools-5.1).
-# Declared here (not in emsdk-base) so changing versions doesn't invalidate the
-# dependency-builder stage cache, which is version-independent.
+# Declared here (not in emsdk-base, and below embuilder) so changing versions
+# invalidates only the FFmpeg source ADD, not the version-independent
+# dependency-builder and SDL2-port layers.
 ARG FFMPEG_VERSION=n8.1.2
 ENV FFMPEG_VERSION=$FFMPEG_VERSION
-RUN embuilder build sdl2 sdl2-mt
 ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
 COPY --from=x264-builder $INSTALL_DIR $INSTALL_DIR
 COPY --from=libvpx-builder $INSTALL_DIR $INSTALL_DIR

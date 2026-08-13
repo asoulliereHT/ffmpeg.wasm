@@ -10,7 +10,7 @@ EXPORT_NAME="createFFmpegCore"
 # fftools generation by FFmpeg version. The two frontends share no threading
 # code: 5.1 is the classic sequential transcode loop (last ST-capable
 # generation, 8 files); 8.x is the thread-per-stage scheduler frontend.
-case "${FFMPEG_VERSION:-n8.1.2}" in
+case "${FFMPEG_VERSION:?FFMPEG_VERSION must be set (the Dockerfile exports it); refusing to guess an fftools generation}" in
   n5.*)
     VERSION_FLAGS=(
       -I./src/fftools-5.1

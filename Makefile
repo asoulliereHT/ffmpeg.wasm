@@ -20,6 +20,11 @@ clean:
 
 .PHONY: build
 build:
+# An empty FFMPEG_VERSION would override the Dockerfile ARG default and turn
+# the FFmpeg ADD ref into a bare `#`, silently fetching the default branch.
+ifeq ($(strip $(FFMPEG_VERSION)),)
+	$(error FFMPEG_VERSION is empty; expected an FFmpeg tag such as n8.1.2)
+endif
 	make clean PKG_SUFFIX="$(PKG_SUFFIX)"
 	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
 	EXTRA_LDFLAGS="$(EXTRA_LDFLAGS)" \

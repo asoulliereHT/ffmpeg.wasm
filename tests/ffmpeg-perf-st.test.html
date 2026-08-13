@@ -21,6 +21,15 @@
       mocha.setup("bdd");
       mocha.timeout(300000); // single-threaded 1080p60 x264 in wasm is slow
     </script>
+    <script>
+      // These numbers feed the engine decision; isolated-vs-isolated timings
+      // would silently measure the wrong deployment target.
+      describe("environment", function () {
+        it("is NOT cross-origin isolated", function () {
+          chai.expect(window.crossOriginIsolated).to.equal(false);
+        });
+      });
+    </script>
     <script src="./ffmpeg-perf.test.js"></script>
     <script>
       window.expect = chai.expect;

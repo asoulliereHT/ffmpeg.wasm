@@ -87,6 +87,8 @@ case "${FFMPEG_VARIANT:-full}" in
       --disable-everything
       --enable-protocol=file,pipe,data
       --enable-demuxer=mov,mpegts,concat
+      # null muxer/bsf: kept for discard-output probe/diagnostic runs
+      # (`-f null -`); they cost ~nothing and removing them breaks debugging.
       --enable-muxer=mp4,null
       --enable-decoder=h264,aac
       --enable-parser=h264,aac

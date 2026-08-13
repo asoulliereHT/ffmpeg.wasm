@@ -1,6 +1,14 @@
 # MT-only FFmpeg core (no single-threaded build on 8.x)
 
-- **Status**: Accepted
+- **Status**: Accepted for the 8.x MT core; the "reject ST" reasoning is
+  **under re-evaluation** as of 2026-08-13. Two bullets below have since been
+  falsified: an ST core no longer means downgrading to upstream 5.1.4 (the
+  fork now builds ST **5.1.10** from its own hardened pins — the ST cutoff is
+  after 5.1, not 8.x: fftools requires threads from 6.0 onward), and the
+  multi-input filtergraph deadlock does **not** reproduce on the
+  pre-scheduler ST core (`tests/ffmpeg-multiinput.test.js` shows
+  `overlay`/`xfade`/concat-filter completing). See the FORK.md capability
+  map. A superseding ADR follows if an ST core ships.
 - **Date**: 2026-07-07
 
 ## Context

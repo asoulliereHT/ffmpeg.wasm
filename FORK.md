@@ -1,8 +1,11 @@
-# FloSports fork — FFmpeg 8.1.2 (MT-only)
+# FloSports fork — FFmpeg 8.1.2 (MT) + 5.1.10 (ST)
 
-This is a hardened fork of ffmpeg.wasm on **FFmpeg 8.1.2** (upstream is on 5.1.4).
-It targets an internal **video clipping** use case: cut, transcode, and losslessly
-stitch clips in the browser. Built for **vendoring** (not npm-published).
+This is a hardened fork of ffmpeg.wasm (upstream is on 5.1.4). The primary
+cores are **FFmpeg 8.1.2, MT-only**; the branch also builds **ST 5.1.10**
+cores for surfaces that cannot serve cross-origin isolation headers (see the
+MT-only bullet below). It targets an internal **video clipping** use case:
+cut, transcode, and losslessly stitch clips in the browser. Built for
+**vendoring** (not npm-published).
 
 ## What changed vs upstream
 - **FFmpeg 5.1.4 → 8.1.2**; **Emscripten 3.1.40 → 6.0.2** (digest-pinned, native arm64 + amd64).
@@ -17,9 +20,12 @@ stitch clips in the browser. Built for **vendoring** (not npm-published).
   isolation headers and support multi-input filtergraphs (see capability map):
   `make build-st` → `packages/core` (full, ~22.8 MB) and `make build-st-copy`
   → `packages/core-copy` (**2.6 MB**, stream-copy only: mov/mpegts/concat in,
-  mp4 out, no encoders — sized to clipping-tool-ui's two `-c copy` commands,
-  vetted verbatim by `tests/ffmpeg-cliptool.test.js`). Vetting record:
-  `~/vault/docs/ffmpeg.wasm/plans/2026-08-13 st-5.1.10-core.md`.
+  mp4 out, no encoders — sized to clipping-tool-ui's two `-c copy` commands).
+  Vetting evidence is in-repo: `tests/ffmpeg-cliptool.test.js` (the two
+  consumer commands verbatim, ST/copy/MT lanes),
+  `tests/ffmpeg-multiinput.test.js` (the filtergraph probe), and
+  `tests/ffmpeg-perf.test.js` (cross-engine timings). The standing decision
+  this re-opens is `docs/adr/0001-mt-only-core.md`.
 - Supply chain: floating lib branches (x264, lame) pinned to commit SHAs; zlib bumped
   to **1.3.1** (CVE-2018-25032, CVE-2022-37434) from upstream.
 - **8.x frontend port**: the vendored `src/fftools` frontend was re-based onto 8.1.2.
@@ -31,7 +37,10 @@ stitch clips in the browser. Built for **vendoring** (not npm-published).
 
 ## Release variants
 
-Each release ships two MT cores. Pick the smallest that covers your pipeline:
+Each release ships two MT cores. Pick the smallest that covers your pipeline.
+(The ST 5.1.10 cores are **not** built by CI or attached to releases yet —
+they are local `make build-st` / `make build-st-copy` builds pending the
+vetting outcome.)
 
 | Variant | Build | Wasm size | Vendor asset | Use when |
 |---------|-------|-----------|--------------|----------|
