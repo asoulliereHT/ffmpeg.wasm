@@ -96,8 +96,13 @@ jobs:
   st-build-and-test:
     runs-on: ubuntu-latest
     steps:
+      # submodules: the cliptool suite fetches testdata/audio-1s.wav, and
+      # testdata is a git submodule — without this the directory is empty in
+      # CI and the fixture fetch 404s. The MT jobs use only embedded fixtures.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

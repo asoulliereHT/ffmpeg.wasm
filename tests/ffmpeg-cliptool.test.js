@@ -28,7 +28,14 @@ before(async function () {
   // pages, MT on the MT page), so it shares the DUT's threading mode.
   await synth.load({ coreURL: SYNTH_CORE_URL, thread: FFMPEG_TYPE === "mt" });
   await synth.writeFile("video.mp4", b64ToUint8Array(VIDEO_1S_MP4));
+  // testdata/ is a git submodule: an unpopulated checkout serves a 404 here,
+  // and writing that body to MEMFS surfaces later as a cryptic ffmpeg ret=1.
   const wav = await fetch("../testdata/audio-1s.wav");
+  if (!wav.ok) {
+    throw new Error(
+      `fixture fetch failed (${wav.status}): is the testdata submodule checked out?`
+    );
+  }
   await synth.writeFile("audio.wav", new Uint8Array(await wav.arrayBuffer()));
 
   // H.264+AAC TS segments — the shape the clip-export path consumes. Re-encode

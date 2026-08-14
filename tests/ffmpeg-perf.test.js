@@ -15,6 +15,11 @@ before(async function () {
     thread: FFMPEG_TYPE === "mt",
   });
   const res = await fetch("../testdata/video-1080p-60fps-2s.mp4");
+  if (!res.ok) {
+    throw new Error(
+      `fixture fetch failed (${res.status}): is the testdata submodule checked out?`
+    );
+  }
   const buf = new Uint8Array(await res.arrayBuffer());
   await ffmpeg.writeFile("in.mp4", buf);
 });
