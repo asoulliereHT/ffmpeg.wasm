@@ -2,10 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- No isolation meta tags: browsers ignore COOP/COEP via <meta> anyway,
-         and the ST lane must run WITHOUT cross-origin isolation (serve.js
-         --no-coi) — that is the property the single-threaded core exists for. -->
-    <title>FFmpeg Unit Test (ST, non-isolated)</title>
+    <!-- ST lane: served via serve.js --no-coi; the page must NOT be
+         cross-origin isolated (see ffmpeg-st.test.html). Kept separate from
+         the main ST suite so a filtergraph hang can't take the whole vetting
+         run down with it. -->
+    <title>FFmpeg Multi-Input Probe (ST, non-isolated)</title>
     <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
   </head>
   <body>
@@ -16,26 +17,23 @@
     <script src="./test-helper-browser.js"></script>
     <script type="text/javascript">
       window.FFMPEG_TYPE = "st";
-      // Origin-relative so the page works on the non-COI port (3001), not
-      // just 3000; an absolute :3000 URL would make the core fetch cross-origin.
       window.CORE_URL =
         location.origin + "/packages/core/dist/umd/ffmpeg-core.js";
     </script>
     <script>
       mocha.setup("bdd");
-      mocha.timeout(60000);
+      // Generous ceiling: single-threaded x264 is slow, and a genuine
+      // scheduler-class hang must be distinguishable from a slow encode.
+      mocha.timeout(120000);
     </script>
     <script>
-      // The load-bearing assertion of the ST lane: the core must work with
-      // crossOriginIsolated === false. If this fails, the server sent COOP/COEP
-      // and the run proves nothing about the no-isolation deployment target.
       describe("environment", function () {
         it("is NOT cross-origin isolated", function () {
           chai.expect(window.crossOriginIsolated).to.equal(false);
         });
       });
     </script>
-    <script src="./ffmpeg.test.js"></script>
+    <script src="./ffmpeg-multiinput.test.js"></script>
     <script>
       window.expect = chai.expect;
       mocha.run();

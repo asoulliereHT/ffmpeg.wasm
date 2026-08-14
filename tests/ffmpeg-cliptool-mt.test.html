@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- MT 8.1.2 core running the identical verbatim consumer commands — the
+         direct cross-engine A/B against the ST pages. Serve via the COI
+         server (port 3000): the MT core requires isolation to load. -->
+    <title>Cliptool Vetting (MT, isolated)</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="../node_modules/mocha/mocha.js"></script>
+    <script src="../node_modules/chai/chai.js"></script>
+    <script src="../packages/ffmpeg/dist/umd/ffmpeg.js"></script>
+    <script src="./test-helper-browser.js"></script>
+    <script type="text/javascript">
+      window.FFMPEG_TYPE = "mt";
+      window.SYNTH_CORE_URL =
+        location.origin + "/packages/core-mt/dist/umd/ffmpeg-core.js";
+      window.CORE_URL = window.SYNTH_CORE_URL;
+    </script>
+    <script>
+      mocha.setup("bdd");
+      mocha.timeout(120000);
+    </script>
+    <script>
+      describe("environment", function () {
+        it("IS cross-origin isolated (MT requires it)", function () {
+          chai.expect(window.crossOriginIsolated).to.equal(true);
+        });
+      });
+    </script>
+    <script src="./ffmpeg-cliptool.test.js"></script>
+    <script>
+      window.expect = chai.expect;
+      mocha.run();
+    </script>
+  </body>
+</html>

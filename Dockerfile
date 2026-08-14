@@ -12,7 +12,6 @@ ARG FFMPEG_ST
 ARG FFMPEG_MT
 ARG FFMPEG_VARIANT=full
 ENV INSTALL_DIR=/opt
-ENV FFMPEG_VERSION=n8.1.2
 ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS"
 ENV CXXFLAGS="$CFLAGS"
 ENV LDFLAGS="-L$INSTALL_DIR/lib $LDFLAGS $CFLAGS $EXTRA_LDFLAGS"
@@ -83,6 +82,13 @@ RUN bash -x /src/build.sh
 # Base ffmpeg image with dependencies and source code populated.
 FROM emsdk-base AS ffmpeg-base
 RUN embuilder build sdl2 sdl2-mt
+# n8.1.2 (MT) or n5.1.10 (ST) — selects the FFmpeg tag AND which vendored
+# fftools generation ffmpeg-wasm.sh compiles (src/fftools vs src/fftools-5.1).
+# Declared here (not in emsdk-base, and below embuilder) so changing versions
+# invalidates only the FFmpeg source ADD, not the version-independent
+# dependency-builder and SDL2-port layers.
+ARG FFMPEG_VERSION=n8.1.2
+ENV FFMPEG_VERSION=$FFMPEG_VERSION
 ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
 COPY --from=x264-builder $INSTALL_DIR $INSTALL_DIR
 COPY --from=libvpx-builder $INSTALL_DIR $INSTALL_DIR
@@ -101,6 +107,7 @@ RUN bash -x /src/build.sh
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
 COPY src/bind /src/src/bind
 COPY src/fftools /src/src/fftools
+COPY src/fftools-5.1 /src/src/fftools-5.1
 COPY build/ffmpeg-wasm.sh build.sh
 # Codec link libs are selected inside build.sh by $FFMPEG_VARIANT.
 RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \
