@@ -20,6 +20,8 @@
         location.origin + "/packages/core/dist/umd/ffmpeg-core.js";
       window.CORE_URL =
         location.origin + "/packages/core-copy/dist/umd/ffmpeg-core.js";
+      // The copy variant must stay GPL-free (no x264, no --enable-gpl).
+      window.EXPECT_GPL_FREE = true;
     </script>
     <script>
       mocha.setup("bdd");

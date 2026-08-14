@@ -113,6 +113,25 @@ const probe = async (name) => {
   };
 };
 
+// GPL-free gate for the copy core (set EXPECT_GPL_FREE in the page): no
+// --enable-gpl in the built-in configuration means configure admitted no
+// GPL-gated component (it hard-errors otherwise), so the artifact is LGPL.
+if (window.EXPECT_GPL_FREE) {
+  describe(genName("licensing"), function () {
+    it("core is built without --enable-gpl (LGPL)", async () => {
+      const logs = [];
+      const listener = ({ message }) => logs.push(message);
+      ffmpeg.on("log", listener);
+      await ffmpeg.exec(["-version"]);
+      ffmpeg.off("log", listener);
+      const banner = logs.join("\n");
+      expect(banner).to.match(/configuration:/);
+      expect(banner).to.not.match(/--enable-gpl/);
+      expect(banner).to.not.match(/--enable-nonfree/);
+    });
+  });
+}
+
 describe(genName("clip export (runClipExport, verbatim)"), function () {
   it("stream-copies a window out of concatenated TS segments + m4a audio", async () => {
     await ffmpeg.writeFile("concat.txt", "file 'seg-a.ts'\nfile 'seg-b.ts'\n");
