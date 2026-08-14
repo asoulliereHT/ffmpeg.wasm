@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- ST lane: served via serve.js --no-coi; the page must NOT be
+         cross-origin isolated (see ffmpeg-st.test.html). Kept separate from
+         the main ST suite so a filtergraph hang can't take the whole vetting
+         run down with it. -->
+    <title>FFmpeg Multi-Input Probe (ST, non-isolated)</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="../node_modules/mocha/mocha.js"></script>
+    <script src="../node_modules/chai/chai.js"></script>
+    <script src="../packages/ffmpeg/dist/umd/ffmpeg.js"></script>
+    <script src="./test-helper-browser.js"></script>
+    <script type="text/javascript">
+      window.FFMPEG_TYPE = "st";
+      window.CORE_URL =
+        location.origin + "/packages/core/dist/umd/ffmpeg-core.js";
+    </script>
+    <script>
+      mocha.setup("bdd");
+      // Generous ceiling: single-threaded x264 is slow, and a genuine
+      // scheduler-class hang must be distinguishable from a slow encode.
+      mocha.timeout(120000);
+    </script>
+    <script>
+      describe("environment", function () {
+        it("is NOT cross-origin isolated", function () {
+          chai.expect(window.crossOriginIsolated).to.equal(false);
+        });
+      });
+    </script>
+    <script src="./ffmpeg-multiinput.test.js"></script>
+    <script>
+      window.expect = chai.expect;
+      mocha.run();
+    </script>
+  </body>
+</html>

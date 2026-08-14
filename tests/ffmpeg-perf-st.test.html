@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- ST perf lane: serve via serve.js --no-coi (port 3001). -->
+    <title>FFmpeg Perf Probe (ST, non-isolated)</title>
+    <link rel="stylesheet" href="../node_modules/mocha/mocha.css" />
+  </head>
+  <body>
+    <div id="mocha"></div>
+    <script src="../node_modules/mocha/mocha.js"></script>
+    <script src="../node_modules/chai/chai.js"></script>
+    <script src="../packages/ffmpeg/dist/umd/ffmpeg.js"></script>
+    <script src="./test-helper-browser.js"></script>
+    <script type="text/javascript">
+      window.FFMPEG_TYPE = "st";
+      window.CORE_URL =
+        location.origin + "/packages/core/dist/umd/ffmpeg-core.js";
+    </script>
+    <script>
+      mocha.setup("bdd");
+      mocha.timeout(300000); // single-threaded 1080p60 x264 in wasm is slow
+    </script>
+    <script>
+      // These numbers feed the engine decision; isolated-vs-isolated timings
+      // would silently measure the wrong deployment target.
+      describe("environment", function () {
+        it("is NOT cross-origin isolated", function () {
+          chai.expect(window.crossOriginIsolated).to.equal(false);
+        });
+      });
+    </script>
+    <script src="./ffmpeg-perf.test.js"></script>
+    <script>
+      window.expect = chai.expect;
+      mocha.run();
+    </script>
+  </body>
+</html>
