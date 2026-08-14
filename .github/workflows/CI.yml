@@ -22,8 +22,8 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # Build the multithreaded core (emsdk 6.0.2 is multi-arch, so this builds
-      # natively on the amd64 runner). MT-only: the 7.x fftools require threads,
-      # so there is no single-threaded core (see docs/handoff).
+      # natively on the amd64 runner). 6.0+ fftools require threads, so the MT
+      # cores are 8.x; the single-threaded cores are 5.1 (st-build-and-test).
       - name: Build ffmpeg-core-mt
         run: |
           make prd-mt EXTRA_ARGS="--cache-from=type=gha,scope=core-mt --cache-to=type=gha,mode=max,scope=core-mt"
@@ -87,11 +87,54 @@ jobs:
           name: ffmpeg-core-mt-slim
           path: packages/core-mt-slim/dist/*
 
+  # ST gate (parallel with the MT jobs). Builds BOTH 5.1.10 ST cores — the
+  # full core doubles as the input synthesizer for the cliptool suite (the
+  # copy core has no encoders by design) — then runs the ST suite and the
+  # verbatim clipping-tool-ui commands against the copy core, both on the
+  # non-COI server (the whole point of ST is running without COOP/COEP; the
+  # pages assert crossOriginIsolated === false).
+  st-build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ffmpeg-core (ST full) + ffmpeg-core-copy
+        run: |
+          make prd EXTRA_ARGS="--cache-from=type=gha,scope=core-st --cache-to=type=gha,mode=max,scope=core-st"
+          make prd-st-copy EXTRA_ARGS="--cache-from=type=gha,scope=core-st-copy --cache-to=type=gha,mode=max,scope=core-st-copy"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build JS packages
+        run: npm run build
+
+      - name: Run ST suite (non-isolated)
+        run: npx start-server-and-test "npm run serve:no-coi" 3001 "npm run test:browser:ffmpeg:st"
+
+      - name: Run cliptool suite against the copy core (non-isolated)
+        run: npx start-server-and-test "npm run serve:no-coi" 3001 "npm run test:browser:cliptool:copy"
+
+      - name: Upload core-copy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-core-copy
+          path: packages/core-copy/dist/*
+
   # On a version tag, publish the vendorable artifacts (core + wrapper) as a
   # GitHub Release, so downstream apps can vendor from a targeted release.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, slim-build-and-test]
+    needs: [build-and-test, slim-build-and-test, st-build-and-test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -106,6 +149,7 @@ jobs:
         run: |
           make prd-mt EXTRA_ARGS="--cache-from=type=gha,scope=core-mt --cache-to=type=gha,mode=max,scope=core-mt"
           make prd-mt-slim EXTRA_ARGS="--cache-from=type=gha,scope=core-mt-slim --cache-to=type=gha,mode=max,scope=core-mt-slim"
+          make prd-st-copy EXTRA_ARGS="--cache-from=type=gha,scope=core-st-copy --cache-to=type=gha,mode=max,scope=core-st-copy"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -122,6 +166,7 @@ jobs:
           mkdir -p dist-release
           tar -C packages/core-mt/dist      -czf "dist-release/ffmpeg-core-mt-${GITHUB_REF_NAME}.tgz" .
           tar -C packages/core-mt-slim/dist -czf "dist-release/ffmpeg-core-mt-slim-${GITHUB_REF_NAME}.tgz" .
+          tar -C packages/core-copy/dist    -czf "dist-release/ffmpeg-core-st-copy-${GITHUB_REF_NAME}.tgz" .
           tar -C packages/ffmpeg/dist       -czf "dist-release/ffmpeg-wasm-${GITHUB_REF_NAME}.tgz" .
 
       - name: Attach artifacts to release

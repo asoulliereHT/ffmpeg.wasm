@@ -37,19 +37,22 @@ cut, transcode, and losslessly stitch clips in the browser. Built for
 
 ## Release variants
 
-Each release ships two MT cores. Pick the smallest that covers your pipeline.
-(The ST 5.1.10 cores are **not** built by CI or attached to releases yet —
-they are local `make build-st` / `make build-st-copy` builds pending the
-vetting outcome.)
+Each release ships two MT cores and one ST core. Pick the smallest that
+covers your pipeline. (The **full** ST 5.1.10 core stays a local `make prd`
+build — CI builds it as the cliptool-suite synthesizer but does not attach
+it to releases.)
 
-| Variant | Build | Wasm size | Vendor asset | Use when |
-|---------|-------|-----------|--------------|----------|
-| **full** | all lean codecs enabled (x264, vpx, opus, mp3lame, webp, zimg + zlib + native AAC) | ~25.3 MB | `ffmpeg-core-mt-<tag>.tgz` | general use / unknown codec needs |
-| **slim** | `--disable-everything` + an allowlist for exactly one pipeline: H.264/AAC over mp4/ts | **~6 MB** | `ffmpeg-core-mt-slim-<tag>.tgz` | H.264+AAC only: stream-copy clip/concat, single-input x264 re-encode, re-encode stitch |
+| Variant     | Build | Wasm size | Vendor asset | Use when |
+|-------------|-------|-----------|--------------|----------|
+| **full**    | all lean codecs enabled (x264, vpx, opus, mp3lame, webp, zimg + zlib + native AAC) | ~25.3 MB | `ffmpeg-core-mt-<tag>.tgz` | general use / unknown codec needs |
+| **slim**    | `--disable-everything` + an allowlist for exactly one pipeline: H.264/AAC over mp4/ts | **~6 MB** | `ffmpeg-core-mt-slim-<tag>.tgz` | H.264+AAC only: stream-copy clip/concat, single-input x264 re-encode, re-encode stitch |
+| **st-copy** | ST 5.1.10, `--disable-everything` + stream-copy allowlist (mov/mpegts/concat in, mp4 out, no encoders) | **~2.6 MB** | `ffmpeg-core-st-copy-<tag>.tgz` (from v0.15.1) | `-c copy` clip export + stitch with **no COOP/COEP** requirement |
 
-Both are identical at the wrapper/ABI level — same fftools frontend, same
-`_ffmpeg`/`_ffprobe` ABI, same postMessage contract. Only the compiled-in
-component set differs.
+All variants are identical at the wrapper/ABI level — same `_ffmpeg`/`_ffprobe`
+ABI, same postMessage contract. The MT cores share the 8.1.2 scheduler
+frontend; st-copy runs the 5.1 sequential frontend and loads with
+`thread: false` and no isolation headers. Only the compiled-in component set
+differs otherwise.
 
 **Slim is `--disable-everything` + an allowlist** (see `build/ffmpeg.sh`): it
 strips ~all of FFmpeg's ~400 decoders / 350 demuxers / 130 filters and re-enables
